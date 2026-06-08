@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAP Admisiones</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .chat-container { width: 100%; max-width: 500px; height: 90vh; min-height: 500px; background: white; border-radius: 20px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 25px; text-align: center; }
+        .logo { width: 60px; height: 60px; background: white; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; color: #1e3a5f; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #f8f9fa; }
+        .message { max-width: 85%; padding: 14px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message.bot { background: white; color: #2c3e50; align-self: flex-start; border-bottom-left-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .message.user { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
+        .message-time { font-size: 0.7rem; opacity: 0.5; margin-top: 8px; text-align: right; }
+        .typing-indicator { display: none; align-self: flex-start; background: white; padding: 15px 20px; border-radius: 20px; border-bottom-left-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .typing-indicator.active { display: flex; gap: 5px; align-items: center; }
+        .typing-dot { width: 8px; height: 8px; background: #1e3a5f; border-radius: 50%; animation: typing 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+        .suggestions { display: flex; gap: 8px; padding: 12px 20px; overflow-x: auto; background: white; border-top: 1px solid #e8e8e8; }
+        .suggestion-btn { padding: 8px 16px; background: #f0f4f8; border: 1px solid #d0d8e0; border-radius: 20px; cursor: pointer; font-size: 0.85rem; color: #1e3a5f; white-space: nowrap; outline: none; }
+        .suggestion-btn:hover { background: #1e3a5f; color: white; }
+        .chat-input { padding: 15px 20px; background: white; border-top: 1px solid #e8e8e8; display: flex; gap: 10px; }
+        .chat-input input { flex: 1; padding: 12px 18px; border: 2px solid #e0e0e0; border-radius: 25px; outline: none; font-size: 0.9rem; font-family: inherit; }
+        .chat-input input:focus { border-color: #2d5a87; }
+        .chat-input button { padding: 12px 24px; background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 0.9rem; font-weight: 600; outline: none; }
+        .chat-messages::-webkit-scrollbar { width: 5px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #c0c8d0; border-radius: 3px; }
+        @media (max-width: 480px) { body { padding: 0; } .chat-container { height: 100vh; border-radius: 0; max-width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="logo">UAP</div>
+            <h1>Admisiones UAP</h1>
+            <p>Universidad Autónoma del Paraguay</p>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+        <div class="suggestions" id="suggestions">
+            <button class="suggestion-btn" onclick="sendSuggestion('Hola quiero información')">👋 Saludar</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('Quiero estudiar salud')">🏥 Salud</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('Me interesa negocios')">💼 Negocios</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('Tecnología')">💻 Tecnología</button>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Escribí tu mensaje..." onkeypress="handleKeyPress(event)" autocomplete="off">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // BASE DE DATOS - SOLO PROGRAMAS ACTIVOS
+        // ============================================
+        const DB = {
+            programs: [
+                // GRADO
+                { name: "Odontología", level: "Grado", area: "Salud", duration: "10 semestres", sede: "Central" },
+                { name: "Administración de Empresas", level: "Grado", area: "Negocios", sede: "Central" },
+                { name: "Marketing y Publicidad", level: "Grado", area: "Negocios", sede: "Central" },
+                { name: "Ciencias Contables", level: "Grado", area: "Negocios", sede: "Central" },
+                { name: "Fisioterapia", level: "Grado", area: "Salud", sede: "Central" },
+                { name: "Podología", level: "Grado", area: "Salud", sede: "Central" },
+                { name: "Fonoaudiología", level: "Grado", area: "Salud", sede: "Central" },
+                { name: "Psicología", level: "Grado", area: "Salud", sede: "Central" },
+                { name: "Óptica y Contactología", level: "Grado", area: "Salud", sede: "Central" },
+                { name: "Técnico Superior en Prótesis Dental", level: "Grado", area: "Salud", sede: "Central" },
+                
+                // DIPLOMADOS
+                { name: "Diplomado Internacional en Comunicación Estratégica", level: "Diplomado", area: "Negocios", duration: "5 meses", modality: "Online", price: "Gs. 2.450.000", discount: "30%" },
+                { name: "Diplomado Internacional en Business Analytics", level: "Diplomado", area: "Negocios", duration: "5 meses", modality: "Online", price: "Gs. 2.450.000", discount: "30%" },
+                { name: "Diplomado en Python y Data Science", level: "Diplomado", area: "Tecnología", duration: "5 meses", modality: "Online", price: "Gs. 2.450.000", discount: "30%" },
+                { name: "Diplomado en Inteligencia Artificial", level: "Diplomado", area: "Tecnología", duration: "5 meses", modality: "Online", price: "Gs. 2.450.000", discount: "30%" },
+                { name: "Diplomado en Arquitectura de Software", level: "Diplomado", area: "Tecnología", duration: "5 meses", modality: "Online", price: "Gs. 2.450.000", discount: "30%" },
+                { name: "Diplomado en Fonoaudiología Escolar", level: "Diplomado", area: "Salud", duration: "5 meses", modality: "Online", price: "Gs. 500.000" },
+                { name: "Diplomado en Psicología Deportiva", level: "Diplomado", area: "Salud", duration: "6 meses", modality: "Online", price: "Gs. 500.000" },
+                { name: "Diplomado en Gestión de Personas", level: "Diplomado", area: "Negocios", duration: "8 meses", modality: "Online", price: "Gs. 500.000" },
+                { name: "Diplomado en Psicoterapia Breve", level: "Diplomado", area: "Salud", duration: "9 meses", modality: "Online", price: "Gs. 500.000" },
+                { name: "Diplomado en Audiología Clínica", level: "Diplomado", area: "Salud", duration: "5 meses", modality: "Híbrido", price: "Gs. 500.000" },
+                
+                // ESPECIALIZACIONES
+                { name: "Especialización en Didáctica Universitaria", level: "Especialización", area: "Educación", duration: "7 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Especialización en Psicología Clínica", level: "Especialización", area: "Salud", duration: "18 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Especialización en Cirugía Bucomaxilofacial", level: "Especialización", area: "Salud", duration: "33 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Especialización en Odontopedíatría", level: "Especialización", area: "Salud", duration: "20 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Especialización en Endodoncia", level: "Especialización", area: "Salud", duration: "18 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                
+                // MAESTRÍAS
+                { name: "Maestría en Ciencias de la Educación", level: "Maestría", area: "Educación", duration: "24 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Maestría en Ciencias Odontológicas", level: "Maestría", area: "Salud", duration: "18 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                
+                // DOCTORADOS
+                { name: "Doctorado en Ciencias de la Educación", level: "Doctorado", area: "Educación", duration: "24 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" },
+                { name: "Doctorado en Ciencias Odontológicas", level: "Doctorado", area: "Salud", duration: "24 meses", modality: "Presencial", sede: "Asunción", price: "Gs. 500.000" }
+            ]
+        };
+
+        // ============================================
+        // ESTADO DE LA CONVERSACIÓN
+        // ============================================
+        const STATE = {
+            step: 'greeting', // greeting, area_selected, level_selected, program_selected, asking_data, data_name, data_phone, data_when, completed
+            area: null,
+            level: null,
+            program: null,
+            userData: {}
+        };
+
+        // ============================================
+        // FUNCIONES AUXILIARES
+        // ============================================
+        function findPrograms(area, level) {
+            return DB.programs.filter(p => {
+                if (area && p.area !== area) return false;
+                if (level && p.level !== level) return false;
+                return true;
+            });
+        }
+
+        function findProgramByName(name) {
+            const q = name.toLowerCase().trim().replace(/^•\s*/, ''); // Eliminar bullet
+            return DB.programs.find(p => {
+                const pname = p.name.toLowerCase();
+                return pname === q || pname.includes(q) || q.includes(pname.split(' ')[0]);
+            });
+        }
+
+        function formatProgram(p) {
+            let s = `**${p.name}**`;
+            if (p.duration && p.duration !== '-') s += ` (${p.duration})`;
+            if (p.price && p.price !== 'Gs. 0') s += ` - ${p.price}`;
+            if (p.modality) s += ` [${p.modality}]`;
+            return s;
+        }
+
+        // ============================================
+        // MOTOR DE RESPUESTAS
+        // ============================================
+        function getResponse(text) {
+            const lower = text.toLowerCase().trim().replace(/^•\s*/, '');
+            
+            // Detectar área
+            const areas = { 'salud': 'Salud', 'negocio': 'Negocios', 'tecnología': 'Tecnología', 'educación': 'Educación', 'psicología': 'Salud' };
+            let detectedArea = null;
+            Object.keys(areas).forEach(k => { if (lower.includes(k)) detectedArea = areas[k]; });
+            
+            // Detectar nivel
+            const levels = { 'grado': 'Grado', 'licenciatura': 'Grado', 'diplomado': 'Diplomado', 'especializ': 'Especialización', 'maestría': 'Maestría', 'master': 'Maestría', 'doctorado': 'Doctorado', 'postgrado': null, 'posgrado': null };
+            let detectedLevel = null;
+            Object.keys(levels).forEach(k => { if (lower.includes(k)) detectedLevel = levels[k]; });
+            
+            // PASO 1: SALUDO
+            if (STATE.step === 'greeting') {
+                if (detectedArea) {
+                    STATE.area = detectedArea;
+                    STATE.step = 'area_selected';
+                    const programs = findPrograms(detectedArea, null);
+                    const byLevel = {};
+                    programs.forEach(p => { if (!byLevel[p.level]) byLevel[p.level] = []; byLevel[p.level].push(p); });
+                    
+                    let resp = `¡Genial! En **${detectedArea}** tenemos:\n\n`;
+                    Object.keys(byLevel).forEach(l => {
+                        resp += `**${l}s:**\n`;
+                        byLevel[l].forEach(p => resp += `• ${formatProgram(p)}\n`);
+                        resp += '\n';
+                    });
+                    resp += `¿Te interesa alguno? Escribí el nombre.`;
+                    return resp;
+                }
+                
+                if (detectedLevel === null && (lower.includes('postgrado') || lower.includes('posgrado'))) {
+                    return `¡Perfecto! Para posgrado tenemos:\n\n• Diplomados (5-9 meses, online)\n• Especializaciones (7-33 meses, presencial)\n• Maestrías (18-24 meses, presencial)\n• Doctorados (24 meses, presencial)\n\n¿Qué tipo de posgrado te interesa? O si preferís, decime el área (Salud, Negocios, Tecnología, Educación).`;
+                }
+                
+                if (detectedLevel) {
+                    STATE.level = detectedLevel;
+                    STATE.step = 'level_selected';
+                    const programs = findPrograms(null, detectedLevel);
+                    const byArea = {};
+                    programs.forEach(p => { if (!byArea[p.area]) byArea[p.area] = []; byArea[p.area].push(p); });
+                    
+                    let resp = `¡Perfecto! Para **${detectedLevel}** tenemos:\n\n`;
+                    Object.keys(byArea).forEach(a => {
+                        resp += `**${a}:**\n`;
+                        byArea[a].forEach(p => resp += `• ${formatProgram(p)}\n`);
+                        resp += '\n';
+                    });
+                    resp += `¿Cuál te interesa?`;
+                    return resp;
+                }
+                
+                return `¡Hola! 👋 Soy tu asistente de Admisiones UAP.\n\n¿Buscás carrera de **grado** o **posgrado**?\n\nTambién podés decirme el área que te interesa: Salud, Negocios, Tecnología o Educación.`;
+            }
+            
+            // PASO 2: ÁREA SELECCIONADA - Esperar programa específico
+            if (STATE.step === 'area_selected') {
+                // Buscar programa específico
+                const prog = findProgramByName(text);
+                if (prog) {
+                    STATE.program = prog;
+                    STATE.step = 'program_selected';
+                    let resp = `¡Excelente elección! **${prog.name}**\n\n`;
+                    if (prog.duration) resp += `📅 Duración: ${prog.duration}\n`;
+                    if (prog.modality) resp += `🏫 Modalidad: ${prog.modality}\n`;
+                    if (prog.sede) resp += `📍 Sede: ${prog.sede}\n`;
+                    if (prog.price) resp += `💰 Precio: ${prog.price}${prog.discount ? ' (descuento ' + prog.discount + ')' : ''}\n`;
+                    resp += `\n¿Te gustaría que un asesor te contacte para más info?`;
+                    return resp;
+                }
+                
+                // Si dice "diplomado" o "maestría", filtrar
+                if (detectedLevel) {
+                    const filtered = findPrograms(STATE.area, detectedLevel);
+                    if (filtered.length > 0) {
+                        let resp = `¡Perfecto! En **${STATE.area}** para **${detectedLevel}** tenemos:\n\n`;
+                        filtered.forEach(p => resp += `• ${formatProgram(p)}\n`);
+                        resp += `\n¿Cuál te interesa?`;
+                        return resp;
+                    }
+                }
+                
+                return `¿Te interesa algún programa específico de los que te mostré? Escribí el nombre y te doy más detalles.`;
+            }
+            
+            // PASO 3: NIVEL SELECCIONADO
+            if (STATE.step === 'level_selected') {
+                const prog = findProgramByName(text);
+                if (prog) {
+                    STATE.program = prog;
+                    STATE.area = prog.area;
+                    STATE.step = 'program_selected';
+                    let resp = `¡Excelente! **${prog.name}**\n\n`;
+                    if (prog.duration) resp += `📅 ${prog.duration}\n`;
+                    if (prog.modality) resp += `🏫 ${prog.modality}\n`;
+                    if (prog.price) resp += `💰 ${prog.price}\n`;
+                    resp += `\n¿Querés que un asesor te contacte?`;
+                    return resp;
+                }
+                
+                if (detectedArea) {
+                    STATE.area = detectedArea;
+                    const filtered = findPrograms(detectedArea, STATE.level);
+                    if (filtered.length > 0) {
+                        let resp = `En **${detectedArea}** para **${STATE.level}**:\n\n`;
+                        filtered.forEach(p => resp += `• ${formatProgram(p)}\n`);
+                        resp += `\n¿Cuál te gusta?`;
+                        return resp;
+                    }
+                }
+                
+                return `Escribí el nombre del programa que te interesa de los que te mostré.`;
+            }
+            
+            // PASO 4: PROGRAMA SELECCIONADO - Ofrecer contacto
+            if (STATE.step === 'program_selected') {
+                if (lower.includes('si') || lower.includes('sí') || lower.includes('quiero') || lower.includes('dale') || lower.includes('ok')) {
+                    STATE.step = 'asking_data';
+                    return `¡Genial! Para que un asesor te contacte, necesito:\n\n• Tu nombre completo\n• Teléfono / WhatsApp\n• ¿Cuándo te conviene?\n\nEmpezá con tu nombre:`;
+                }
+                
+                if (lower.includes('no') || lower.includes('todavía') || lower.includes('despues')) {
+                    return `¡No hay problema! 😊 Quedo atento/a si necesitás más información. ¿Te interesa conocer otros programas?`;
+                }
+                
+                return `¿Te gustaría que un asesor te contacte con más información sobre ${STATE.program.name}?`;
+            }
+            
+            // PASO 5-8: COLECTAR DATOS
+            if (STATE.step === 'asking_data') {
+                if (text.length >= 3) {
+                    STATE.userData.name = text;
+                    STATE.step = 'data_phone';
+                    return `¡Muchas gracias ${text}! 📱 ¿Me pasás tu teléfono o WhatsApp?`;
+                }
+            }
+            
+            if (STATE.step === 'data_phone') {
+                const phone = text.match(/\d{8,15}/);
+                if (phone) {
+                    STATE.userData.phone = phone[0];
+                    STATE.step = 'data_when';
+                    return `¡Perfecto! Guardé ${phone[0]}. ¿Para cuándo te gustaría que te contactemos?`;
+                }
+                return `Necesito un número de teléfono válido. ¿Cuál es tu WhatsApp?`;
+            }
+            
+            if (STATE.step === 'data_when') {
+                STATE.userData.when = text;
+                STATE.step = 'completed';
+                return `¡Excelente! 🎉\n\n**Resumen:**\n• Nombre: ${STATE.userData.name}\n• Teléfono: ${STATE.userData.phone}\n• Contacto: ${text}\n• Programa: ${STATE.program ? STATE.program.name : STATE.area || 'No especificado'}\n\nUn asesor se comunicará con vos. ¿Algo más?`;
+            }
+            
+            if (STATE.step === 'completed') {
+                if (lower.includes('gracias') || lower.includes('chau') || lower.includes('adiós') || lower.includes('listo')) {
+                    return `¡De nada! 😊 Quedo atento/a. ¡Éxitos!`;
+                }
+                return `¿Necesitás ayuda con algo más?`;
+            }
+            
+            // Precios
+            if (lower.includes('precio') || lower.includes('costo') || lower.includes('cuánto')) {
+                return `💰 **Precios:**\n\nDiplomados Online:\n• Gs. 3.500.000 total\n• Con 30% desc: Gs. 2.450.000\n• 5 cuotas de Gs. 490.000\n\nEspecializaciones/Maestrías/Doctorados:\n• Desde Gs. 500.000\n\n¿Te interesa algún programa específico?`;
+            }
+            
+            // Default
+            return `Perdón, no entendí bien. ¿Podés ser más específico? ¿Buscás grado o posgrado? ¿O querés información de algún programa en particular?`;
+        }
+
+        // ============================================
+        // UI
+        // ============================================
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+        
+        function addMessage(text, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user' : 'bot'}`;
+            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            const time = new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+            div.innerHTML = formatted + `<div class="message-time">${time}</div>`;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTyping() { typingIndicator.classList.add('active'); chatMessages.scrollTop = chatMessages.scrollHeight; }
+        function hideTyping() { typingIndicator.classList.remove('active'); }
+        
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+            addMessage(text, true);
+            messageInput.value = '';
+            showTyping();
+            setTimeout(() => { hideTyping(); addMessage(getResponse(text)); }, 800 + Math.random() * 700);
+        }
+        
+        function sendSuggestion(text) { messageInput.value = text; sendMessage(); }
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+        
+        // Iniciar
+        setTimeout(() => addMessage(getResponse('hola')), 500);
+        messageInput.focus();
+    </script>
+</body>
+</html>
