@@ -61,14 +61,21 @@ Ver SKILL.md para lista completa con duraciones y facultades.
 - Bitrix24 CRM (solicitar credenciales)
 - WhatsApp/Telegram para contacto directo con leads
 
-## Configuraciones Pendientes
+## Configuraciones Completadas
 
 1. [x] Conectar Google Sheets con precios ✅ (URL: https://docs.google.com/spreadsheets/d/e/2PACX-1vSDwq-ZLJT_vehT9QRTbfnUcIqxuZMW5qo8WupE03FVvlM-3oryI6Jy-HImVPUMyowKpOsA2CzYV_9s/pub?output=csv)
-2. [ ] Cargar programas de GRADO (licenciaturas) en el Google Sheet
-3. [ ] Obtener credenciales de Bitrix24
-4. [ ] Definir asesores de admisiones humanos para transferencia
-5. [ ] Crear flujo de notificación cuando un lead necesita transferencia
-6. [ ] Definir horarios de atención del agente vs. humanos
+2. [x] Agente inteligente conectado ✅ (Claude Haiku en OpenClaw)
+3. [x] Tailscale Funnel configurado ✅ (URL: https://mac-mini-de-esteban.tail95199b.ts.net/)
+4. [x] Frontend en Vercel ✅ (URL: https://uap-chatbot-deploy.vercel.app)
+5. [x] Modelo de IA no se revela ✅ (SOUL.md actualizado)
+
+## Configuraciones Pendientes
+
+1. [ ] Cargar programas de GRADO (licenciaturas) en el Google Sheet
+2. [ ] Obtener credenciales de Bitrix24
+3. [ ] Definir asesores de admisiones humanos para transferencia
+4. [ ] Crear flujo de notificación cuando un lead necesita transferencia
+5. [ ] Definir horarios de atención del agente vs. humanos
 
 ## Lecciones Aprendidas
 
